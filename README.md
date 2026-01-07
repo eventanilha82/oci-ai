@@ -41,6 +41,7 @@ uv run app_context.py
 uv run app_image.py
 uv run app_langchain.py
 uv run app_langchain_react.py
+uv run app_langchain_output.py
 uv run app_output.py
 uv run app_reasoning.py
 uv run app_tool.py
@@ -48,4 +49,5 @@ uv run app_tool.py
 
 ## Notas
 - Apps com `OCI_BASE_URL`: `app_api.py`, `app_context.py`, `app_image.py`, `app_output.py`, `app_reasoning.py`, `app_tool.py`.
-- Apps com `OCI_SERVICE_ENDPOINT`: `app_langchain.py`, `app_langchain_react.py`.
+- Apps com `OCI_SERVICE_ENDPOINT`: `app_langchain.py`, `app_langchain_react.py`, `app_langchain_output.py`.
+- `app_langchain_output.py` faz stream de JSON formatado em tempo real.
