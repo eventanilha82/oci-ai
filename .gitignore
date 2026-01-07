@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.template
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.venv/
+.uv/
+.uv-cache/
+.pytest_cache/
+.DS_Store
+.vscode/
+.idea/
