@@ -32,6 +32,50 @@ cp .env.template .env
 ```
 2) Preencha as variaveis no `.env`.
 
+## Setup OCI (API Auth)
+Siga o guia oficial de autenticação OCI: https://docs.oracle.com/pt-br/iaas/Content/generative-ai-agents/setup-oci-api-auth.htm
+
+Resumo do que precisa estar pronto:
+- Tenha uma tenancy OCI ativa e um usuário com permissões para Generative AI.
+- Gere ou configure credenciais de API (chave pública/privada) e associe ao usuário.
+- Crie/edite o arquivo de configuração OCI (ex.: `~/.oci/config`) com `user`, `tenancy`, `fingerprint`, `key_file`, `region`.
+- Use o caminho desse arquivo em `OCI_CONFIG_FILE` no `.env`.
+- Garanta o `OCI_COMPARTMENT_ID`, `OCI_SERVICE_ENDPOINT` e `OCI_MODEL_ID` corretos.
+
+## LiteLLM (Docker Compose)
+Arquivos: `docker-compose.yml`, `config.yaml`, `prometheus.yml`.
+O compose sobe o proxy LiteLLM, Postgres e Prometheus (LLMOps).
+
+Variáveis adicionais no `.env`:
+- `LITELLM_MASTER_KEY`
+- `LITELLM_SALT_KEY`
+- `LITELLM_API_KEY`
+- `OCI_REGION`
+- `OCI_USER`
+- `OCI_FINGERPRINT`
+- `OCI_TENANCY`
+- `OCI_KEY`
+
+Subir o proxy:
+```
+docker compose up -d
+```
+
+Parar o compose:
+```
+docker compose down
+```
+
+UI do LiteLLM:
+- http://localhost:4000/ui
+
+Testar o proxy local:
+```
+uv run python call_litellm.py
+```
+
+O exemplo `call_litellm.py` usa `LITELLM_API_KEY` do `.env` e carrega via `python-dotenv`.
+
 ## Como rodar
 Cada app pode ser executado com `uv run`:
 

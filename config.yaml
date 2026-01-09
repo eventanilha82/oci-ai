@@ -1,0 +1,43 @@
+litellm_settings:
+  callbacks:
+    - prometheus
+  drop_params: true
+
+credential_list:
+  - credential_name: default_oci_credential
+    credential_values:
+      oci_user: os.environ/OCI_USER
+      oci_tenancy: os.environ/OCI_TENANCY
+      oci_compartment_id: os.environ/OCI_COMPARTMENT_ID
+      oci_region: os.environ/OCI_REGION
+      oci_fingerprint: os.environ/OCI_FINGERPRINT
+      oci_key: os.environ/OCI_KEY
+    credential_info:
+      description: "OCI GenAI credentials"
+
+
+model_list:
+  - model_name: gemini-2-5-pro
+    litellm_params:
+      model: oci/google.gemini-2.5-pro
+      litellm_credential_name: default_oci_credential
+  - model_name: gemini-2-5-flash-lite
+    litellm_params:
+      model: oci/google.gemini-2.5-flash-lite
+      litellm_credential_name: default_oci_credential
+  - model_name: gemini-2-5-flash
+    litellm_params:
+      model: oci/google.gemini-2.5-flash
+      litellm_credential_name: default_oci_credential
+  - model_name: xai-grok-4-fast-reasoning
+    litellm_params:
+      model: oci/xai.grok-4-fast-reasoning
+      litellm_credential_name: default_oci_credential
+  - model_name: openai-gpt-oss-120b
+    litellm_params:
+      model: oci/openai.gpt-oss-120b
+      litellm_credential_name: default_oci_credential
+  - model_name: xai-grok-code-fast-1
+    litellm_params:
+      model: oci/xai.grok-code-fast-1
+      litellm_credential_name: default_oci_credential
