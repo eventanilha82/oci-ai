@@ -1,0 +1,22 @@
+
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager -y --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker opc
+sudo dnf install -y git
+
+git clone https://github.com/eventanilha82/oci-ai.git
+
+ssh -i ssh.key opc@ip
+
+scp -i ssh-key.key .env  opc@ip:/home/opc/oci-ai/.env
+
+sudo firewall-cmd --permanent --add-port=80/tcp
+sudo firewall-cmd --permanent --add-port=3000/tcp
+sudo firewall-cmd --permanent --add-port=4000/tcp
+
+sudo firewall-cmd --reload
+
+formata minha chave ssh para uma linha de env como essa OCI_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
