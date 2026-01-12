@@ -38,8 +38,6 @@ services:
       POSTGRES_DB: litellm
       POSTGRES_USER: llmproxy
       POSTGRES_PASSWORD: dbpassword9090
-    ports:
-      - "5432:5432"
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data
     healthcheck:
@@ -50,6 +48,7 @@ services:
 
   prometheus:
     image: prom/prometheus
+    user: "0"
     volumes:
       - ./data/prometheus:/prometheus
     ports:
