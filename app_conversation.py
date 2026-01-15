@@ -2,10 +2,8 @@ import json
 import os
 import time
 
-import httpx
 from dotenv import load_dotenv
-from oci_openai import OciUserPrincipalAuth
-from openai import OpenAI
+from oci_openai import OciOpenAI, OciUserPrincipalAuth
 
 load_dotenv()
 
@@ -55,36 +53,29 @@ def _print_usage(payload: object) -> None:
 
 
 COMPARTMENT_ID = _require_env("OCI_COMPARTMENT_ID")
-HTTP_CLIENT_HEADERS = {"CompartmentId": COMPARTMENT_ID}
-# HTTP_CLIENT_HEADERS = {
-#     "CompartmentId": COMPARTMENT_ID,
-#     "opc-compartment-id": COMPARTMENT_ID,
-#     "opc-conversation-store-id": "ocid1.generativeaiconversationstore.oc1.us-chicago-1.amaaaaaad6nji3aalr5xxsgw7muncfzp7inwkbk676cuv4mg4wv7t4nxy3ka",
-# }
-OCI_BASE_URL = _require_env("OCI_BASE_URL")
-# OCI_BASE_URL = (
-#     "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1"
-# )
+CONVERSATION_STORE_ID = _require_env("OCI_CONVERSATION_STORE_ID")
 OCI_CONFIG_FILE = os.path.expanduser(_require_env("OCI_CONFIG_FILE"))
+REGION = "us-chicago-1"
 MODEL_ID = _require_env("OCI_MODEL_ID")
+OCI_BASE_URL = (
+    "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1"
+)
 
 
-def _build_client() -> OpenAI:
-    http_client = httpx.Client(
+def _build_client() -> OciOpenAI:
+    return OciOpenAI(
+        region=REGION,
         auth=OciUserPrincipalAuth(config_file=OCI_CONFIG_FILE),
-        headers=HTTP_CLIENT_HEADERS,
-    )
-    return OpenAI(
-        api_key="OCI",
+        compartment_id=COMPARTMENT_ID,
+        conversation_store_id=CONVERSATION_STORE_ID,
         base_url=OCI_BASE_URL,
-        http_client=http_client,
     )
 
 
-def _close_client(client: OpenAI) -> None:
-    http_client = getattr(client, "http_client", None)
-    if http_client is not None:
-        http_client.close()
+def _close_client(client: OciOpenAI) -> None:
+    close_fn = getattr(client, "close", None)
+    if callable(close_fn):
+        close_fn()
 
 
 client = _build_client()
@@ -93,71 +84,6 @@ SYSTEM_PROMPT = "Você é um assistente útil."
 USER_PROMPT = "Explique como listar todos os arquivos de um diretório usando Python."
 
 PRINT_RAW = False
-
-
-def stream_with_chat_completions() -> None:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": USER_PROMPT},
-    ]
-
-    start_time = time.time()
-    try:
-        stream = client.chat.completions.create(
-            model=MODEL_ID,
-            messages=messages,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
-
-        if PRINT_RAW:
-            for chunk in stream:
-                _print_pretty_json(chunk)
-        else:
-            last_usage = None
-            for chunk in stream:
-                if not chunk.choices:
-                    last_usage = getattr(chunk, "usage", None) or last_usage
-                    continue
-                if (
-                    hasattr(chunk.choices[0].delta, "content")
-                    and chunk.choices[0].delta.content
-                ):
-                    text = chunk.choices[0].delta.content
-                    print(text, end="", flush=True)
-            print()
-            if last_usage is not None:
-                _print_usage({"usage": last_usage})
-    except Exception as exc:
-        print(f"\n[ERRO Completions]: {exc}")
-    finally:
-        elapsed = time.time() - start_time
-        print(f"\n⏱️ Tempo (chat.completions): {elapsed:.2f}s")
-
-
-def run_with_chat_completions() -> None:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": USER_PROMPT},
-    ]
-
-    start_time = time.time()
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_ID,
-            messages=messages,
-        )
-
-        if PRINT_RAW:
-            _print_pretty_json(response)
-        else:
-            print(response.choices[0].message.content)
-        _print_usage(response)
-    except Exception as exc:
-        print(f"\n[ERRO Completions create]: {exc}")
-    finally:
-        elapsed = time.time() - start_time
-        print(f"\n⏱️ Tempo (chat.completions create): {elapsed:.2f}s")
 
 
 def run_with_responses_api() -> None:
@@ -212,11 +138,51 @@ def stream_with_responses_api() -> None:
         print(f"\n⏱️ Tempo (responses.stream): {elapsed:.2f}s")
 
 
+def run_with_conversation_memory() -> None:
+    start_time = time.time()
+    try:
+        conversation = client.conversations.create(
+            metadata={"topic": "demo"},
+            items=[
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": "Olá! Guarde este contexto. Meu nome é João e eu gosto de programar em Python.",
+                }
+            ],
+        )
+
+        if PRINT_RAW:
+            _print_pretty_json(conversation)
+        else:
+            print(f"Conversation ID: {conversation.id}")
+
+        response = client.responses.create(
+            model=MODEL_ID,
+            input=[
+                {
+                    "role": "user",
+                    "content": "O que foi armazenado na conversa até agora?",
+                },
+            ],
+            conversation=conversation.id,
+        )
+        if PRINT_RAW:
+            _print_pretty_json(response)
+        else:
+            print(response.output_text)
+        _print_usage(response)
+    except Exception as exc:
+        print(f"\n[ERRO Conversations + Responses]: {exc}")
+    finally:
+        elapsed = time.time() - start_time
+        print(f"\n⏱️ Tempo (conversations + responses): {elapsed:.2f}s")
+
+
 if __name__ == "__main__":
     try:
         # run_with_responses_api()
-        stream_with_responses_api()
-        # run_with_chat_completions()
-        # stream_with_chat_completions()
+        # stream_with_responses_api()
+        run_with_conversation_memory()
     finally:
         _close_client(client)

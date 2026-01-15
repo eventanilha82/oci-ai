@@ -36,6 +36,7 @@ Exemplo mínimo de `.env` (ajuste para sua tenancy):
 ```
 OCI_CONFIG_FILE=/home/opc/.oci/config
 OCI_COMPARTMENT_ID=ocid1.compartment.oc1...
+OCI_CONVERSATION_STORE_ID=ocid1.generativeaiconversationstore.oc1...
 OCI_SERVICE_ENDPOINT=https://generativeai.us-chicago-1.oci.oraclecloud.com
 OCI_MODEL_ID=ocid1.generativeaimodel.oc1...
 LITELLM_MASTER_KEY=troque-por-um-segredo
@@ -49,7 +50,7 @@ OCI_KEY="-----BEGIN PRIVATE KEY-----\n...conteúdo...\n-----END PRIVATE KEY-----
 ```
 
 Variáveis essenciais:
-- OCI: `OCI_CONFIG_FILE`, `OCI_COMPARTMENT_ID`, `OCI_SERVICE_ENDPOINT`, `OCI_MODEL_ID`
+- OCI: `OCI_CONFIG_FILE`, `OCI_COMPARTMENT_ID`, `OCI_CONVERSATION_STORE_ID`, `OCI_SERVICE_ENDPOINT`, `OCI_MODEL_ID`
 - LiteLLM: `LITELLM_MASTER_KEY`, `LITELLM_SALT_KEY`, `LITELLM_API_KEY`
 
 ## Guia rápido: VM (OCI) + Docker + Deploy
@@ -156,6 +157,19 @@ Resumo do que precisa estar pronto:
 - Use o caminho desse arquivo em `OCI_CONFIG_FILE` no `.env`.
 - Garanta o `OCI_COMPARTMENT_ID`, `OCI_SERVICE_ENDPOINT` e `OCI_MODEL_ID` corretos.
 
+## Conversation Store (OCI)
+Para persistir conversas, crie um Conversation Store no console OCI e use o OCID no `.env`.
+
+Passo a passo (Console OCI):
+1) Acesse **Generative AI**.
+2) Vá em **Conversation Stores** (ou **Conversations**, conforme sua região).
+3) Clique em **Create** e selecione o **compartment** correto.
+4) Copie o **OCID** do Conversation Store criado.
+5) Preencha `OCI_CONVERSATION_STORE_ID` no `.env`.
+
+Os scripts `app_conversation.py`, `app_conversation2.py` e `app_pdf.py` enviam o header
+`opc-conversation-store-id` usando essa variável.
+
 ## LiteLLM + OpenWebUI (Docker Compose)
 Arquivos: `docker-compose.yml`, `config.yaml`.
 O compose sobe:
@@ -223,17 +237,37 @@ Cada app pode ser executado com `uv run`:
 
 ```
 uv run app_api.py
+uv run app_conversation.py
+uv run app_conversation2.py
 uv run app_context.py
 uv run app_image.py
 uv run app_langchain.py
 uv run app_langchain_react.py
 uv run app_langchain_output.py
 uv run app_output.py
+uv run app_pdf.py
 uv run app_reasoning.py
 uv run app_tool.py
+uv run chat.py
+uv run chat2.py
 uv run call_classif.py
 uv run call_litellm.py
 ```
+
+## Streamlit Chat (chat.py / chat2.py)
+Dois chats em Streamlit:
+- `chat.py`: usa **Chat Completions** via proxy LiteLLM (porta `4000`).
+- `chat2.py`: usa **Responses API** direto na OCI.
+
+Como rodar:
+```
+uv run streamlit run chat.py
+uv run streamlit run chat2.py
+```
+
+Requisitos:
+- `chat.py` precisa de `LITELLM_API_KEY` e do proxy LiteLLM rodando (`http://localhost:4000`).
+- `chat2.py` usa `OCI_CONFIG_FILE`, `OCI_COMPARTMENT_ID`, `OCI_CONVERSATION_STORE_ID` e `OCI_MODEL_ID`.
 
 Comandos úteis:
 ```

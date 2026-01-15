@@ -94,7 +94,7 @@ class CalendarEvent(BaseModel):
 SYSTEM_PROMPT = "Extraia as informações do evento."
 USER_PROMPT = "Valentina e Enzo vão a uma feira de ciências na sexta-feira."
 
-PRINT_RAW = True
+PRINT_RAW = False
 
 
 def run_with_responses_api() -> None:

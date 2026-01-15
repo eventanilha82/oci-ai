@@ -1,10 +1,11 @@
+import base64
 import json
 import os
 import time
 
 import httpx
 from dotenv import load_dotenv
-from oci_openai import OciUserPrincipalAuth
+from oci_openai import OciOpenAI, OciUserPrincipalAuth
 from openai import OpenAI
 
 load_dotenv()
@@ -15,6 +16,11 @@ def _require_env(name: str) -> str:
     if not value:
         raise ValueError(f"Variável de ambiente obrigatória ausente: {name}")
     return value
+
+
+def encode_file(file_path: str) -> str:
+    with open(file_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 
 def _print_pretty_json(payload: object) -> None:
@@ -55,16 +61,16 @@ def _print_usage(payload: object) -> None:
 
 
 COMPARTMENT_ID = _require_env("OCI_COMPARTMENT_ID")
-HTTP_CLIENT_HEADERS = {"CompartmentId": COMPARTMENT_ID}
-# HTTP_CLIENT_HEADERS = {
-#     "CompartmentId": COMPARTMENT_ID,
-#     "opc-compartment-id": COMPARTMENT_ID,
-#     "opc-conversation-store-id": "ocid1.generativeaiconversationstore.oc1.us-chicago-1.amaaaaaad6nji3aalr5xxsgw7muncfzp7inwkbk676cuv4mg4wv7t4nxy3ka",
-# }
-OCI_BASE_URL = _require_env("OCI_BASE_URL")
-# OCI_BASE_URL = (
-#     "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1"
-# )
+CONVERSATION_STORE_ID = _require_env("OCI_CONVERSATION_STORE_ID")
+HTTP_CLIENT_HEADERS = {
+    "CompartmentId": COMPARTMENT_ID,
+    "opc-compartment-id": COMPARTMENT_ID,
+    "opc-conversation-store-id": CONVERSATION_STORE_ID,
+}
+# OCI_BASE_URL = _require_env("OCI_BASE_URL")
+OCI_BASE_URL = (
+    "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com/openai/v1"
+)
 OCI_CONFIG_FILE = os.path.expanduser(_require_env("OCI_CONFIG_FILE"))
 MODEL_ID = _require_env("OCI_MODEL_ID")
 
@@ -89,84 +95,46 @@ def _close_client(client: OpenAI) -> None:
 
 client = _build_client()
 
-SYSTEM_PROMPT = "Você é um assistente útil."
-USER_PROMPT = "Explique como listar todos os arquivos de um diretório usando Python."
+SYSTEM_PROMPT = "Você é um especialista em analises."
+USER_PROMPT = "O que você pode me dizer sobre o conteúdo deste PDF?"
+BASE64_PDF = encode_file("A-ARTE-DA-GUERRA.pdf")
 
 PRINT_RAW = False
-
-
-def stream_with_chat_completions() -> None:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": USER_PROMPT},
-    ]
-
-    start_time = time.time()
-    try:
-        stream = client.chat.completions.create(
-            model=MODEL_ID,
-            messages=messages,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
-
-        if PRINT_RAW:
-            for chunk in stream:
-                _print_pretty_json(chunk)
-        else:
-            last_usage = None
-            for chunk in stream:
-                if not chunk.choices:
-                    last_usage = getattr(chunk, "usage", None) or last_usage
-                    continue
-                if (
-                    hasattr(chunk.choices[0].delta, "content")
-                    and chunk.choices[0].delta.content
-                ):
-                    text = chunk.choices[0].delta.content
-                    print(text, end="", flush=True)
-            print()
-            if last_usage is not None:
-                _print_usage({"usage": last_usage})
-    except Exception as exc:
-        print(f"\n[ERRO Completions]: {exc}")
-    finally:
-        elapsed = time.time() - start_time
-        print(f"\n⏱️ Tempo (chat.completions): {elapsed:.2f}s")
-
-
-def run_with_chat_completions() -> None:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": USER_PROMPT},
-    ]
-
-    start_time = time.time()
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_ID,
-            messages=messages,
-        )
-
-        if PRINT_RAW:
-            _print_pretty_json(response)
-        else:
-            print(response.choices[0].message.content)
-        _print_usage(response)
-    except Exception as exc:
-        print(f"\n[ERRO Completions create]: {exc}")
-    finally:
-        elapsed = time.time() - start_time
-        print(f"\n⏱️ Tempo (chat.completions create): {elapsed:.2f}s")
 
 
 def run_with_responses_api() -> None:
     start_time = time.time()
     try:
         response = client.responses.create(
-            model=MODEL_ID,
+            model="openai.gpt-5",
+            # model=MODEL_ID,
             instructions=SYSTEM_PROMPT,
-            input=USER_PROMPT,
+            reasoning={"effort": "low", "summary": "auto"},
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": USER_PROMPT},
+                        {
+                            "type": "input_file",
+                            "filename": "filename.pdf",
+                            "file_data": f"data:application/pdf;base64,{BASE64_PDF}",
+                        },
+                    ],
+                }
+            ],
+            # input=[
+            #     {
+            #         "role": "user",
+            #         "content": [
+            #             {"type": "input_text", "text": USER_PROMPT},
+            #             {
+            #                 "type": "input_file",
+            #                 "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+            #             },
+            #         ],
+            #     }
+            # ],
         )
         if PRINT_RAW:
             _print_pretty_json(response)
@@ -184,9 +152,20 @@ def stream_with_responses_api() -> None:
     start_time = time.time()
     try:
         stream = client.responses.create(
-            model=MODEL_ID,
+            model="openai.gpt-5",
             instructions=SYSTEM_PROMPT,
-            input=USER_PROMPT,
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": USER_PROMPT},
+                        {
+                            "type": "input_file",
+                            "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+                        },
+                    ],
+                }
+            ],
             stream=True,
             stream_options={"include_usage": True},
         )
@@ -214,9 +193,8 @@ def stream_with_responses_api() -> None:
 
 if __name__ == "__main__":
     try:
-        # run_with_responses_api()
-        stream_with_responses_api()
-        # run_with_chat_completions()
-        # stream_with_chat_completions()
+        run_with_responses_api()
+        # stream_with_responses_api()
+
     finally:
         _close_client(client)
